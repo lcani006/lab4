@@ -36,6 +36,8 @@ static void clook_add_request(struct request_queue *q, struct request *rq)
 {
 	struct clook_data *nd = q->elevator->elevator_data;
 
+	printk("[CLOOK] test print");
+
 	list_add_tail(&rq->queuelist, &nd->queue);
 }
 
