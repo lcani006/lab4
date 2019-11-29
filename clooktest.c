@@ -12,7 +12,7 @@ int main()
    if(file == NULL)
    {
        printf("Error!");
-       exit(1);
+       return 1;
    }
 
     int i = 0;
