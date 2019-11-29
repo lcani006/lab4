@@ -4,7 +4,7 @@ int main()
 {
    
    
-   printf("Reading and Writing to iotest.txt");
+   printf("Reading and Writing to iotest.txt\n");
    
    
    FILE *file;
