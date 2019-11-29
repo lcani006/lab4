@@ -1,4 +1,5 @@
 /*
+ * Author: Leonardo Canizares
  * elevator clook
  */
 #include <linux/blkdev.h>
@@ -7,6 +8,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+
+int dh = -1; //keeps track of diskhead position
 
 struct clook_data {
 	struct list_head queue;
@@ -18,27 +21,82 @@ static void clook_merged_requests(struct request_queue *q, struct request *rq,
 	list_del_init(&next->queuelist);
 }
 
+/*
+ * clook_dispatch modified to implement clook algorithm
+ * 
+ */
 static int clook_dispatch(struct request_queue *q, int force)
 {
 	struct clook_data *nd = q->elevator->elevator_data;
+	char direction;
 
 	if (!list_empty(&nd->queue)) {
 		struct request *rq;
 		rq = list_entry(nd->queue.next, struct request, queuelist);
 		list_del_init(&rq->queuelist);
 		elv_dispatch_sort(q, rq);
+		dh = blk_rq_pos(rq);//update diskhead position
+
+		//print statement formating
+		if(rq_data_dir(rq)){
+			direction = 'W';
+		} else {
+			direction = 'R';
+		}
+	
+		printk("[CLOOK] dsp %c %lu\n", direction, blk_rq_pos(rq));
+
 		return 1;
 	}
 	return 0;
 }
 
+/*
+ * clook_add_request modified to implement clook algorithm
+ * 
+ */
 static void clook_add_request(struct request_queue *q, struct request *rq)
 {
 	struct clook_data *nd = q->elevator->elevator_data;
+	struct list_head *cur = NULL; //pointer for current entry
+	char direction;
 
-	printk("[CLOOK] test print");
+	//iterate through request queue
+	list_for_each(cur, &nd->queue){
 
-	list_add_tail(&rq->queuelist, &nd->queue);
+		struct request *entry = list_entry(cur, struct request, queuelist);
+
+		if (blk_rq_pos(rq) > dh)
+		{
+			// If the current position less than diskhead OR rq position less than current position
+			//break and add to current position
+			if(blk_rq_pos(entry) < dh || blk_rq_pos(rq) < blk_rq_pos(entry))
+				break;
+			
+		} else {
+			// current position less than disk head
+			// If the current position less than diskhead AND rq position less than current position 
+			//break and add to cur position
+			if(blk_rq_pos(entry) < dh && blk_rq_pos(rq) < blk_rq_pos(entry))
+				break;
+		}
+
+	}
+
+	//add request to queue
+	list_add_tail(&rq->queuelist, cur);
+
+	//print statement formating
+	if(rq_data_dir(rq)){
+		direction = 'W';
+	} else {
+		direction = 'R';
+	}
+
+	//added debug print statement
+	printk("[CLOOK] add %c %lu\n", direction, blk_rq_pos(rq));
+
+	
 }
 
 static struct request *
